@@ -7,8 +7,10 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
+import android.icu.lang.UScript;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.example.moneyconverter.fragments.CalculatorFragment;
@@ -17,10 +19,13 @@ import com.example.moneyconverter.helpers.FileHelper;
 import com.example.moneyconverter.models.Currency;
 import com.example.moneyconverter.models.CurrencyRoot;
 import com.example.moneyconverter.models.FilePaths;
+import com.example.moneyconverter.models.UserTempData;
 import com.example.moneyconverter.services.Private24Service;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -42,36 +47,13 @@ public class MainActivity extends AppCompatActivity {
     private CurrencyRoot currencyRoot = null;
     private boolean isOldData = false;
 
-    private Currency firstCurrency;
-    private Currency secondCurrency;
+    private Currency firstCurrency = null;
+    private Currency secondCurrency = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        retrofit = new Retrofit.Builder()
-                .baseUrl("https://api.privatbank.ua/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-
-        try {
-            currencyRoot = FileHelper.read(this.openFileInput(FilePaths.API_DATA));
-
-            if(currencyRoot == null) loadDataFromAPI();
-
-            var dateNow = new SimpleDateFormat("dd.MM.yyyy").format(Calendar.getInstance().getTime());
-
-            if(dateNow.equals(currencyRoot.getDate())){
-                openMainFragment(currencyRoot);
-            }else {//try update data
-                isOldData = true;
-                loadDataFromAPI();
-            }
-        } catch (Exception e) {
-            loadDataFromAPI();
-        }
-
     }
 
     private void loadDataFromAPI(){
@@ -84,17 +66,26 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<CurrencyRoot> call, Response<CurrencyRoot> response) {
                 if(response.code() == 200 && response.body() != null && response.body().getExchangeRate() != null){
+                    CurrencyRoot root = response.body();
+                    UserTempData tempData = new UserTempData(root.getExchangeRate().get(0), root.getExchangeRate().get(1));
                     try {//Save currencyRoot to file
                         FileHelper.write(openFileOutput(FilePaths.API_DATA, MODE_PRIVATE), response.body());
+                        if(isOldData){
+                            var currency1 = root.getExchangeRate().stream().filter(x -> x.getCurrency().equals(firstCurrency.getCurrency()))
+                                    .findFirst().orElse(root.getExchangeRate().get(0));
+                            var currency2 = root.getExchangeRate().stream().filter(x -> x.getCurrency().equals(secondCurrency.getCurrency()))
+                                    .findFirst().orElse(root.getExchangeRate().get(1));
+                            tempData = new UserTempData(currency1, currency2);
+                        }
                         isOldData = false;
                     } catch (FileNotFoundException ex) {
-                        throw new RuntimeException(ex);
+                        openMainFragment(root, tempData);
+                    }finally {
+                        openMainFragment(root, tempData);
                     }
-                    openMainFragment(response.body());
-                }
-                else {
+                } else {
                     if(isOldData){
-                        openMainFragment(currencyRoot);
+                        openMainFragment(currencyRoot,null);
                     }else {
                         openErrorFragment(response.code(), "Unexpected error!");
                     }
@@ -105,12 +96,11 @@ public class MainActivity extends AppCompatActivity {
             public void onFailure(Call<CurrencyRoot> call, Throwable t) {
                 if(isOldData){
                     Toast.makeText(getApplicationContext(), "Please check your internet connection!", Toast.LENGTH_LONG);
-                    openMainFragment(currencyRoot);
+                    openMainFragment(currencyRoot, null);
                 }
                 else {
                     currencyRoot = new CurrencyRoot();
                     openErrorFragment(404, "Please check your internet connection and restart the app.");
-                    //Toast.makeText(getApplicationContext(),t.getMessage(), Toast.LENGTH_LONG).show();
                 }
             }
         });
@@ -124,12 +114,17 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.main_fragment_container, ErrorFragment.class, error)
                 .commit();
     }
-    private void openMainFragment(CurrencyRoot currencyRoot){
-        //Init
+    private void openMainFragment(CurrencyRoot currencyRoot, UserTempData userTempData){
         this.currencyRoot = currencyRoot;
-        firstCurrency = currencyRoot.getExchangeRate().get(0);
-        secondCurrency = currencyRoot.getExchangeRate().get(1);
-
+        if(userTempData != null){
+            this.firstCurrency = userTempData.getLastFirstCurrency();
+            this.secondCurrency = userTempData.getLastSecondCurrency();
+        }else {
+            if(this.firstCurrency == null && this.secondCurrency == null){
+                this.firstCurrency = currencyRoot.getExchangeRate().get(0);
+                this.secondCurrency = currencyRoot.getExchangeRate().get(1);
+            }
+        }
         //Open CalculatorFragment
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.main_fragment_container, CalculatorFragment.class, null)
@@ -163,5 +158,46 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean isOldData() {
         return isOldData;
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        retrofit = new Retrofit.Builder()
+                .baseUrl("https://api.privatbank.ua/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        try {
+            currencyRoot = (CurrencyRoot) FileHelper.read(this.openFileInput(FilePaths.API_DATA));
+
+            if(currencyRoot == null) loadDataFromAPI();
+
+            var userTempData = (UserTempData)FileHelper.read(this.openFileInput(FilePaths.TEMP_DATA));
+            this.firstCurrency = userTempData.getLastFirstCurrency();
+            this.secondCurrency = userTempData.getLastSecondCurrency();
+            var dateNow = new SimpleDateFormat("dd.MM.yyyy").format(Calendar.getInstance().getTime());
+
+            if(dateNow.equals(currencyRoot.getDate())){
+                openMainFragment(currencyRoot, userTempData);
+            }else {//try update data
+                isOldData = true;
+                loadDataFromAPI();
+            }
+        } catch (Exception e) {
+            loadDataFromAPI();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if(this.firstCurrency == null || this.secondCurrency == null){
+            return;
+        }
+        try {
+            FileHelper.write(openFileOutput(FilePaths.TEMP_DATA, MODE_PRIVATE), new UserTempData(this.firstCurrency, this.secondCurrency));
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
