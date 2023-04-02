@@ -1,9 +1,7 @@
 package com.example.moneyconverter.fragments;
 
-import android.content.Context;
 import android.os.Bundle;
 
-import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -12,12 +10,8 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AbsListView;
 import android.widget.EditText;
-import android.widget.ListAdapter;
-import android.widget.Toast;
 
-import com.example.moneyconverter.MainActivity;
 import com.example.moneyconverter.R;
 import com.example.moneyconverter.adapters.CurrencyAdapter;
 import com.example.moneyconverter.models.Currency;
@@ -31,11 +25,15 @@ public class ListOfCurrenciesFragment extends Fragment {
     private List<Currency> list;
     private RecyclerView recyclerView;
     private CurrencyAdapter adapter;
-    private MainActivity mainActivity;
     private EditText search;
+    private CallBack callBack;
+    private boolean isFirstCurrency;
 
-    public ListOfCurrenciesFragment() {
-        // Required empty public constructor
+
+    public ListOfCurrenciesFragment(boolean isFirstCurrency, List<Currency> list, CallBack callBack) {
+        this.callBack = callBack;
+        this.list = list;
+        this.isFirstCurrency = isFirstCurrency;
     }
 
     @Override
@@ -52,9 +50,7 @@ public class ListOfCurrenciesFragment extends Fragment {
         recyclerView.setAdapter(adapter);
         adapter.notifyDataSetChanged();
 
-        view.findViewById(R.id.btn_back).setOnClickListener(x ->  mainActivity.getSupportFragmentManager().beginTransaction()
-                .replace(R.id.main_fragment_container, CalculatorFragment.class, null)
-                .commit());
+        view.findViewById(R.id.btn_back).setOnClickListener(x ->  callBack.openCalculatorFragment());
 
         search = ((EditText)view.findViewById(R.id.search));
         search.addTextChangedListener(new TextWatcher() {
@@ -143,25 +139,21 @@ public class ListOfCurrenciesFragment extends Fragment {
         return compliedPatternArray;
     }
 
-
     private void setCurrency(Currency currency){
-        var nCurrency = this.getArguments().getString("n");
-
-        if(nCurrency.equals("first")){
-            mainActivity.setFirstCurrency(currency);
+        if(isFirstCurrency){
+            callBack.setFirstCurrency(currency);
         }
         else {
-            mainActivity.setSecondCurrency(currency);
+            callBack.setSecondCurrency(currency);
         }
-        mainActivity.getSupportFragmentManager().beginTransaction()
-                .replace(R.id.main_fragment_container, CalculatorFragment.class, null)
-                .commit();
+        callBack.openCalculatorFragment();
     }
 
-    @Override
-    public void onAttach(@NonNull Context context) {
-        super.onAttach(context);
-        mainActivity = ((MainActivity)context);
-        list = mainActivity.getCurrencies();
+
+    public interface CallBack{
+        void setFirstCurrency(Currency firstCurrency);
+        void setSecondCurrency(Currency secondCurrency);
+        void openCalculatorFragment();
     }
+
 }

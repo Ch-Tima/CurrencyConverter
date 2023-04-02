@@ -2,37 +2,22 @@ package com.example.moneyconverter;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
-import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
-import android.icu.lang.UScript;
-import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Toast;
 
 import com.example.moneyconverter.fragments.CalculatorFragment;
 import com.example.moneyconverter.fragments.ErrorFragment;
+import com.example.moneyconverter.fragments.ListOfCurrenciesFragment;
 import com.example.moneyconverter.helpers.FileHelper;
 import com.example.moneyconverter.models.Currency;
 import com.example.moneyconverter.models.CurrencyRoot;
 import com.example.moneyconverter.models.FilePaths;
 import com.example.moneyconverter.models.UserTempData;
 import com.example.moneyconverter.services.Private24Service;
-import com.squareup.picasso.Picasso;
-import com.squareup.picasso.Target;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -42,6 +27,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
+    private final CalculatorFragment.CalculatorCallBack calculatorCallBack;
+    private final ListOfCurrenciesFragment.CallBack listOfCurrenciesCallBack;
     private Retrofit retrofit = null;
     private Private24Service private24Service = null;
     private CurrencyRoot currencyRoot = null;
@@ -49,6 +36,57 @@ public class MainActivity extends AppCompatActivity {
 
     private Currency firstCurrency = null;
     private Currency secondCurrency = null;
+
+    public MainActivity() {
+        this.calculatorCallBack = new CalculatorFragment.CalculatorCallBack() {
+            @Override
+            public Currency getFirstCurrency() {
+                return firstCurrency;
+            }
+
+            @Override
+            public Currency getSecondCurrency() {
+                return secondCurrency;
+            }
+
+            @Override
+            public void swapCurrency() {
+                var temp = firstCurrency;
+                firstCurrency = secondCurrency;
+                secondCurrency = temp;
+            }
+
+            @Override
+            public boolean isOldData() {
+                return isOldData;
+            }
+
+            @Override
+            public void openListCurrencyFragment(boolean isFirstCurrency) {
+                MainActivity.this.openListCurrencyFragment(isFirstCurrency);
+            }
+        };
+
+        this.listOfCurrenciesCallBack = new ListOfCurrenciesFragment.CallBack() {
+            @Override
+            public void setFirstCurrency(Currency firstCurrency) {
+                MainActivity.this.firstCurrency = firstCurrency;
+            }
+
+            @Override
+            public void setSecondCurrency(Currency secondCurrency) {
+                MainActivity.this.secondCurrency = secondCurrency;
+            }
+
+            @Override
+            public void openCalculatorFragment() {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.main_fragment_container, new CalculatorFragment(calculatorCallBack), CalculatorFragment.class.getName())
+                        .commit();
+            }
+        };
+
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,6 +152,7 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.main_fragment_container, ErrorFragment.class, error)
                 .commit();
     }
+
     private void openMainFragment(CurrencyRoot currencyRoot, UserTempData userTempData){
         this.currencyRoot = currencyRoot;
         if(userTempData != null){
@@ -127,37 +166,15 @@ public class MainActivity extends AppCompatActivity {
         }
         //Open CalculatorFragment
         getSupportFragmentManager().beginTransaction()
-                .replace(R.id.main_fragment_container, CalculatorFragment.class, null)
+                .replace(R.id.main_fragment_container, new CalculatorFragment(calculatorCallBack), CalculatorFragment.class.getName())
                 .commit();
     }
 
-    public List<Currency> getCurrencies() {
-        return currencyRoot.getExchangeRate();
-    }
-
-    public Currency getFirstCurrency() {
-        return firstCurrency;
-    }
-
-    public void setFirstCurrency(Currency firstCurrency) {
-        this.firstCurrency = firstCurrency;
-    }
-
-    public Currency getSecondCurrency() {
-        return secondCurrency;
-    }
-
-    public void setSecondCurrency(Currency secondCurrency) {
-        this.secondCurrency = secondCurrency;
-    }
-    public void swapCurrency(){
-        var temp = firstCurrency;
-        firstCurrency = secondCurrency;
-        secondCurrency = temp;
-    }
-
-    public boolean isOldData() {
-        return isOldData;
+    private void openListCurrencyFragment(boolean isFirstCurrency){
+        getSupportFragmentManager().beginTransaction()
+                .replace(R.id.main_fragment_container,
+                        new ListOfCurrenciesFragment(isFirstCurrency, this.currencyRoot.getExchangeRate(), listOfCurrenciesCallBack))
+                .commit();
     }
 
     @Override

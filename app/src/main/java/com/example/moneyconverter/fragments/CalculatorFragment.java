@@ -1,10 +1,7 @@
 package com.example.moneyconverter.fragments;
 
-import android.content.Context;
 import android.os.Bundle;
 
-import androidx.annotation.NonNull;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.Fragment;
 
 import android.view.LayoutInflater;
@@ -13,25 +10,21 @@ import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
-import android.view.animation.TranslateAnimation;
 import android.widget.Button;
-import android.widget.GridLayout;
 import android.widget.ImageButton;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.moneyconverter.MainActivity;
 import com.example.moneyconverter.R;
+import com.example.moneyconverter.models.Currency;
 
-import org.w3c.dom.Text;
 
 import java.text.DecimalFormat;
 
 public class CalculatorFragment extends Fragment {
-    private MainActivity mainActivity;
-
+    private CalculatorCallBack callBack;
 
     private Double tempFirstNumber;
     private String selectedSymbol;
@@ -45,11 +38,12 @@ public class CalculatorFragment extends Fragment {
     private TextView secondCurrencyName;
     private ImageButton swapButtonImage;
 
-    public CalculatorFragment() {
+    public CalculatorFragment(CalculatorCallBack callBack) {
         tempFirstNumber = 0.0;
         selectedSymbol = "";
         isShowEquals = false;
         decimalFormat = new DecimalFormat("#.###");
+        this.callBack = callBack;
     }
 
     @Override
@@ -62,7 +56,7 @@ public class CalculatorFragment extends Fragment {
                              Bundle savedInstanceState) {
         var view = inflater.inflate(R.layout.fragment_calculator, container, false);
 
-        if(mainActivity.isOldData()){
+        if(callBack.isOldData()){
             ((TextView)view.findViewById(R.id.message)).setText("Data is outdated!");
         }
 
@@ -92,33 +86,20 @@ public class CalculatorFragment extends Fragment {
         swapButtonImage.setOnClickListener(x -> swapCurrency());
 
         //first_currency_ui
-        view.findViewById(R.id.first_currency).setOnClickListener(x -> openListCurrencyFragment("first"));
+        view.findViewById(R.id.first_currency).setOnClickListener(x -> callBack.openListCurrencyFragment(true));
         firstCurrencyName = view.findViewById(R.id.first_currency_name);
-        firstCurrencyName.setText(mainActivity.getFirstCurrency().getCurrency());
+        firstCurrencyName.setText(callBack.getFirstCurrency().getCurrency());
         firstNumber = view.findViewById(R.id.first_currency_number);
 
         //second_currency_ui
-        view.findViewById(R.id.second_currency).setOnClickListener(x -> openListCurrencyFragment("second"));
+        view.findViewById(R.id.second_currency).setOnClickListener(x -> callBack.openListCurrencyFragment(false));
         secondCurrencyName = view.findViewById(R.id.second_currency_name);
-        secondCurrencyName.setText(mainActivity.getSecondCurrency().getCurrency());
+        secondCurrencyName.setText(callBack.getSecondCurrency().getCurrency());
         secondNumber = view.findViewById(R.id.second_currency_number);
 
         return view;
     }
 
-    @Override
-    public void onAttach(@NonNull Context context) {
-        super.onAttach(context);
-        mainActivity = ((MainActivity)context);
-    }
-
-    private void openListCurrencyFragment(String str){
-        var bundle  = new Bundle();
-        bundle.putString("n", str);
-        getActivity().getSupportFragmentManager().beginTransaction()
-                .replace(R.id.main_fragment_container, ListOfCurrenciesFragment.class, bundle)
-                .commit();
-    }
     private void onClickNumber(View view){
         var btn = (Button)view;
 
@@ -200,7 +181,7 @@ public class CalculatorFragment extends Fragment {
                     result = n1 / n2;
                 }
                 else {
-                    Toast.makeText(mainActivity.getApplicationContext(), "You can't divide by zero!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "You can't divide by zero!", Toast.LENGTH_SHORT).show();
                 }
                 break;
         }
@@ -211,16 +192,16 @@ public class CalculatorFragment extends Fragment {
         try {
 
             var count = Double.valueOf(firstNumber.getText().toString());
-            var buyFirst = mainActivity.getFirstCurrency().getSaleRateNB();
-            var buySecond = mainActivity.getSecondCurrency().getSaleRateNB();
+            var buyFirst = callBack.getFirstCurrency().getSaleRateNB();
+            var buySecond = callBack.getSecondCurrency().getSaleRateNB();
 
             double result = 0.0;
 
-            if(!mainActivity.getFirstCurrency().getCurrency().equals("UAH") &&
-                    !mainActivity.getSecondCurrency().getCurrency().equals("UAH")){
+            if(!callBack.getFirstCurrency().getCurrency().equals("UAH") &&
+                    !callBack.getSecondCurrency().getCurrency().equals("UAH")){
                 result = buyFirst / (buySecond) * count;
             }
-            else if(mainActivity.getFirstCurrency().getCurrency().equals("UAH")){
+            else if(callBack.getFirstCurrency().getCurrency().equals("UAH")){
                 result = count / buySecond;
             }
             else{
@@ -252,17 +233,25 @@ public class CalculatorFragment extends Fragment {
         calculationOfResult();
     }
     private void swapCurrency(){
-        mainActivity.swapCurrency();
+        callBack.swapCurrency();
 
         RotateAnimation animation = new RotateAnimation(0, 180, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
         animation.setDuration(500);
         animation.setInterpolator(new LinearInterpolator());
         swapButtonImage.startAnimation(animation);
 
-        firstCurrencyName.setText(mainActivity.getFirstCurrency().getCurrency());
-        secondCurrencyName.setText(mainActivity.getSecondCurrency().getCurrency());
+        firstCurrencyName.setText(callBack.getFirstCurrency().getCurrency());
+        secondCurrencyName.setText(callBack.getSecondCurrency().getCurrency());
         calculationOfResult();
 
+    }
+
+    public interface CalculatorCallBack{
+        Currency getFirstCurrency();
+        Currency getSecondCurrency();
+        void swapCurrency();
+        boolean isOldData();
+        void openListCurrencyFragment(boolean isFirstCurrency);
     }
 
 }
