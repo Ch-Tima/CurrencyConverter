@@ -2,6 +2,7 @@
 ![Platform](https://img.shields.io/badge/JAVA%2011-100%25-blue)
 ![Platform](https://img.shields.io/badge/platform-android-green)
 ![Platform](https://img.shields.io/badge/last%20commit-%20Mar%202023-yellowgreen)
+[![Platform](https://img.shields.io/badge/GooglePlay-v1.0-important)](https://play.google.com/store/apps/details?id=com.chtima.currencyconverter)
 
 ## Application screenshots
 <div>
@@ -12,3 +13,7 @@
 ## Download
 
     git clone https://github.com/Ch-Tima/CurrencyConverter.git
+
+
+I also have a public version on "Google Play Store", if you want to support me, you can install [_here_](https://play.google.com/store/apps/details?id=com.chtima.currencyconverter)!
+
