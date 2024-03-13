@@ -17,3 +17,14 @@
 
 I also have a public version on "Google Play Store", if you want to support me, you can install [_here_](https://play.google.com/store/apps/details?id=com.chtima.currencyconverter)!
 
+
+## Developer
+
+- **Name**: Tymofii
+- **GitHub**: [Ch-Tima](https://github.com/Ch-Tima)
+- **ko-fi**: [Currency Converter](https://ko-fi.com/chtima?viewimage=IL4L5LHX6E#galleryItemView)
+
+## License
+
+This project is licensed under the [GNU GENERAL PUBLIC LICENSE V3.0](LICENSE).
+
